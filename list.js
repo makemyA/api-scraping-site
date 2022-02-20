@@ -2,12 +2,14 @@
 import fs from "fs";
 import puppeteer from "puppeteer";
 import dotenv from "dotenv";
-import { GraphQLClient, gql } from "graphql-request";
+import { GraphQLClient } from "graphql-request";
+import { insertArticles } from "./graphql/insertArticles.js";
+import { deleteArticles } from "./graphql/deleteArticles.js";
 dotenv.config();
 
 class List {
   constructor({
-    url,
+    url="",
     selectors = { section: "", pager: "", title: "", author: "", date: "" },
   }) {
     this.baseUrl = url;
@@ -16,11 +18,7 @@ class List {
     this.result = { articles: [] };
   }
 
-  test(){
-    console.log("TEST function");
-  }
-
-  async start() {
+  async scrapData() {
     console.log("wtf");
     this.browser = await puppeteer.launch({ headless: true });
     console.log(await this.browser.version());
@@ -32,47 +30,76 @@ class List {
     );
 
     for (const [index, theme] of themes.entries()) {
-      const themeArticles = await this.getThemePage(
+      const themeArticles = await this.getArticles(
         theme.href,
         theme.text,
         index
       );
-      // console.log("themes articles", themeArticles);
-      this.result.articles.push(...themeArticles);
 
-      // this.updateDB(themeArticles);
-      // themeArticles.map(article=> this.updateDB(article))
+      this.result.articles.push(...themeArticles);
     }
+
     this.result.articles.map((article, index) => {
       article.id = index;
     });
-    this.browser.close();
 
-    // fs.writeFile(
-    //   "all_articles.json",
-    //   JSON.stringify(this.result),
-    //   function (err) {
-    //     if (err) throw err;
-    //     console.log("Saved!");
-    //   }
-    // );
+    this.browser.close();
   }
 
-  async getThemePage(url, name, index) {
+  showLogs(){
+    console.log(this.result)
+  }
+
+  generateJson(fileName) {
+    if (fs.existsSync(`data/${fileName}.json`)) {
+      fs.unlink(`data/${fileName}.json`, (err) => {
+        if (err) throw err;
+
+        console.log("file deleted");
+
+        fs.writeFile(
+          `data/${fileName}.json`,
+          JSON.stringify(this.result),
+          function (err) {
+            if (err) throw err;
+            console.log("Saved!");
+          }
+        );
+      });
+    } else {
+      fs.writeFile(
+        `data/${fileName}.json`,
+        JSON.stringify(this.result),
+        function (err) {
+          if (err) throw err;
+          console.log("Saved!");
+        }
+      );
+    }
+  }
+
+  deleteJson(fileName){
+    if (fs.existsSync(`data/${fileName}.json`)) {
+      fs.unlink(`data/${fileName}.json`, (err) => {
+        if (err) throw err;
+        console.log("file deleted");
+      });
+    }
+  }
+
+  async getArticles(url, name) {
     try {
-      // console.log("name", name, url);
       const page = await this.browser.newPage();
       console.log("newpage");
       await page.goto(url, {
         waitUntil: "domcontentloaded",
       });
-      console.log("is on url", name);
+      console.log("parse theme", name);
       // const screenshot= await page.screenshot({ path: `theme-${index}.png` });
       // const pagesNumber = await page.$$eval(this.selectors.pager, (e) =>
       //   e.map((e) => e)
       // );
       const pagesNumber = ["1"];
-      console.log("length", pagesNumber);
 
       const result = [];
 
@@ -137,7 +164,7 @@ class List {
           ...articlesAuthors[index],
           ...articlesDates[index],
         }));
-        // const date = "13-10-2021";
+
         articles.map((article, index) => {
           article.theme = name;
         });
@@ -149,7 +176,7 @@ class List {
     }
   }
 
-  async updateDB(articles) {
+  async insertData(articles) {
     const endpoint = process.env.HASURA_ENDPOINT;
 
     const graphQLClient = new GraphQLClient(endpoint, {
@@ -158,22 +185,31 @@ class List {
         "x-hasura-admin-secret": process.env.HASURA_SECRET,
       },
     });
-    const query = gql`
-      mutation MyMutation($articles: [articles_insert_input!]!) {
-        insert_articles(objects: $articles) {
-          returning {
-            author
-          }
-        }
-      }
-    `;
     const variables = {
       articles: articles,
     };
 
     try {
-      const data = await graphQLClient.request(query, variables);
-      console.log('data', data);
+      const data = await graphQLClient.request(insertArticles, variables);
+      console.log("data", data);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async deleteData() {
+    const endpoint = process.env.HASURA_ENDPOINT;
+
+    const graphQLClient = new GraphQLClient(endpoint, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-hasura-admin-secret": process.env.HASURA_SECRET,
+      },
+    });
+
+    try {
+      const data = await graphQLClient.request(deleteArticles);
+      console.log("data", data);
     } catch (error) {
       console.log(error);
     }

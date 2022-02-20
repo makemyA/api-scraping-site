@@ -1,4 +1,4 @@
-import List from "./list.js";
+import List from "../list.js";
 
 const articles = new List({
   url: "https://theecologist.org/",
@@ -11,4 +11,6 @@ const articles = new List({
   },
 });
 
-articles.scrapData().then(() => articles.showLogs());
+articles.scrapData()
+.then(()=>articles.deleteData())
+.then(()=>articles.insertData(articles.result.articles));
