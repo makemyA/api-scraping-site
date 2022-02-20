@@ -1,8 +1,9 @@
 "use strict";
 import fs from "fs";
 import puppeteer from "puppeteer";
-// var fs = require("fs");
-// const puppeteer = require("puppeteer");
+import dotenv from "dotenv";
+import { GraphQLClient, gql } from "graphql-request";
+dotenv.config();
 
 class List {
   constructor({
@@ -12,7 +13,11 @@ class List {
     this.baseUrl = url;
     this.selectors = selectors;
     this.browser;
-    this.result = [];
+    this.result = { articles: [] };
+  }
+
+  test(){
+    console.log("TEST function");
   }
 
   async start() {
@@ -33,22 +38,24 @@ class List {
         index
       );
       // console.log("themes articles", themeArticles);
-      this.result.push([...themeArticles]);
-    }
+      this.result.articles.push(...themeArticles);
 
+      // this.updateDB(themeArticles);
+      // themeArticles.map(article=> this.updateDB(article))
+    }
+    this.result.articles.map((article, index) => {
+      article.id = index;
+    });
     this.browser.close();
 
-    // const authors = await page.$$eval(".writers-inline .field__item", (e) =>
-    //   e.map((el) => el.textContent)
+    // fs.writeFile(
+    //   "all_articles.json",
+    //   JSON.stringify(this.result),
+    //   function (err) {
+    //     if (err) throw err;
+    //     console.log("Saved!");
+    //   }
     // );
-    fs.writeFile(
-      "allArticles.json",
-      JSON.stringify(this.result),
-      function (err) {
-        if (err) throw err;
-        console.log("Saved!");
-      }
-    );
   }
 
   async getThemePage(url, name, index) {
@@ -61,9 +68,10 @@ class List {
       });
       console.log("is on url", name);
       // const screenshot= await page.screenshot({ path: `theme-${index}.png` });
-      const pagesNumber = await page.$$eval(this.selectors.pager, (e) =>
-        e.map((e) => e)
-      );
+      // const pagesNumber = await page.$$eval(this.selectors.pager, (e) =>
+      //   e.map((e) => e)
+      // );
+      const pagesNumber = ["1"];
       console.log("length", pagesNumber);
 
       const result = [];
@@ -74,7 +82,10 @@ class List {
           waitUntil: "domcontentloaded",
         });
         const articlesTitles = await page.$$eval(this.selectors.title, (e) =>
-          e.map((e) => ({ text: e.textContent, href: e.href }))
+          e.map((e) => ({
+            text: e.textContent.split("\n").shift(),
+            href: e.href,
+          }))
         );
         const articlesAuthors = await page.$$eval(this.selectors.author, (e) =>
           e.map((e) => ({ author: e.textContent }))
@@ -104,12 +115,12 @@ class List {
                   year,
                   month - 1,
                   dateSplitted[0].substring(0, 2)
-                ).getTime() ||
+                ).getTime() / 1000 ||
                 new Date(
                   year,
                   month - 1,
                   dateSplitted[0].substring(0, 1)
-                ).getTime();
+                ).getTime() / 1000;
 
               return timestamp;
             }
@@ -127,12 +138,42 @@ class List {
           ...articlesDates[index],
         }));
         // const date = "13-10-2021";
-        articles.map((article) => (article.theme = name));
-        result.push([...articles]);
+        articles.map((article, index) => {
+          article.theme = name;
+        });
+        result.push(...articles);
       }
       return result;
-      // console.log('after screenshot', screenshot)
-      // console.log("articles", articles);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async updateDB(articles) {
+    const endpoint = process.env.HASURA_ENDPOINT;
+
+    const graphQLClient = new GraphQLClient(endpoint, {
+      headers: {
+        "Content-Type": "application/json",
+        "x-hasura-admin-secret": process.env.HASURA_SECRET,
+      },
+    });
+    const query = gql`
+      mutation MyMutation($articles: [articles_insert_input!]!) {
+        insert_articles(objects: $articles) {
+          returning {
+            author
+          }
+        }
+      }
+    `;
+    const variables = {
+      articles: articles,
+    };
+
+    try {
+      const data = await graphQLClient.request(query, variables);
+      console.log('data', data);
     } catch (error) {
       console.log(error);
     }

@@ -1,4 +1,4 @@
-import List from "./list.js"
+import List from "./list.js";
 
 const articles = new List({
   url: "https://theecologist.org/",
@@ -11,4 +11,10 @@ const articles = new List({
   },
 });
 
-articles.start();
+// articles.start().then(()=>articles.updateDB(articles.result.articles));
+
+export default function test(){
+  articles.test()
+}
+
+test();

@@ -4,8 +4,15 @@
   "main": "index.js",
   "author": "paul Henrot",
   "license": "MIT",
-  "type":"module",
+  "type": "module",
+  "scripts": {
+    "test" : "node index" 
+  },
   "dependencies": {
+    "dotenv": "^16.0.0",
+    "graphql-request": "^4.0.0",
+    "json2graphql": "^0.1.4",
+    "node-fetch": "^3.2.0",
     "puppeteer": "^13.3.2"
   }
 }
