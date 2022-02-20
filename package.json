@@ -1,0 +1,11 @@
+{
+  "name": "manu-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "paul Henrot",
+  "license": "MIT",
+  "type":"module",
+  "dependencies": {
+    "puppeteer": "^13.3.2"
+  }
+}
