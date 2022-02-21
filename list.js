@@ -5,11 +5,12 @@ import dotenv from "dotenv";
 import { GraphQLClient } from "graphql-request";
 import { insertArticles } from "./graphql/insertArticles.js";
 import { deleteArticles } from "./graphql/deleteArticles.js";
+import { exportUsersToExcel } from "./excel/exportService.js";
 dotenv.config();
 
 class List {
   constructor({
-    url="",
+    url = "",
     selectors = { section: "", pager: "", title: "", author: "", date: "" },
   }) {
     this.baseUrl = url;
@@ -46,47 +47,6 @@ class List {
     this.browser.close();
   }
 
-  showLogs(){
-    console.log(this.result)
-  }
-
-  generateJson(fileName) {
-    if (fs.existsSync(`data/${fileName}.json`)) {
-      fs.unlink(`data/${fileName}.json`, (err) => {
-        if (err) throw err;
-
-        console.log("file deleted");
-
-        fs.writeFile(
-          `data/${fileName}.json`,
-          JSON.stringify(this.result),
-          function (err) {
-            if (err) throw err;
-            console.log("Saved!");
-          }
-        );
-      });
-    } else {
-      fs.writeFile(
-        `data/${fileName}.json`,
-        JSON.stringify(this.result),
-        function (err) {
-          if (err) throw err;
-          console.log("Saved!");
-        }
-      );
-    }
-  }
-
-  deleteJson(fileName){
-    if (fs.existsSync(`data/${fileName}.json`)) {
-      fs.unlink(`data/${fileName}.json`, (err) => {
-        if (err) throw err;
-        console.log("file deleted");
-      });
-    }
-  }
-
   async getArticles(url, name) {
     try {
       const page = await this.browser.newPage();
@@ -96,10 +56,10 @@ class List {
       });
       console.log("parse theme", name);
       // const screenshot= await page.screenshot({ path: `theme-${index}.png` });
-      // const pagesNumber = await page.$$eval(this.selectors.pager, (e) =>
-      //   e.map((e) => e)
-      // );
-      const pagesNumber = ["1"];
+      const pagesNumber = await page.$$eval(this.selectors.pager, (e) =>
+        e.map((e) => e)
+      );
+      // const pagesNumber = ["1"];
 
       const result = [];
 
@@ -110,6 +70,7 @@ class List {
         });
         const articlesTitles = await page.$$eval(this.selectors.title, (e) =>
           e.map((e) => ({
+            id: null,
             text: e.textContent.split("\n").shift(),
             href: e.href,
           }))
@@ -176,6 +137,53 @@ class List {
     }
   }
 
+  //log
+
+  showLogs() {
+    console.log(this.result);
+  }
+
+  //JSON
+
+  generateJson(fileName) {
+    if (fs.existsSync(`data/${fileName}.json`)) {
+      fs.unlink(`data/${fileName}.json`, (err) => {
+        if (err) throw err;
+
+        console.log("file deleted");
+
+        fs.writeFile(
+          `data/${fileName}.json`,
+          JSON.stringify(this.result),
+          function (err) {
+            if (err) throw err;
+            console.log("Saved!");
+          }
+        );
+      });
+    } else {
+      fs.writeFile(
+        `data/${fileName}.json`,
+        JSON.stringify(this.result),
+        function (err) {
+          if (err) throw err;
+          console.log("Saved!");
+        }
+      );
+    }
+  }
+
+  deleteJson(fileName) {
+    if (fs.existsSync(`data/${fileName}.json`)) {
+      fs.unlink(`data/${fileName}.json`, (err) => {
+        if (err) throw err;
+        console.log("file deleted");
+      });
+    }
+  }
+
+  // Graphql
+
   async insertData(articles) {
     const endpoint = process.env.HASURA_ENDPOINT;
 
@@ -212,6 +220,31 @@ class List {
       console.log("data", data);
     } catch (error) {
       console.log(error);
+    }
+  }
+
+  // Excel
+
+  async createSheet(fileName) {
+    const dataToExport = fs.existsSync(`data/${fileName}.json`)
+      ? JSON.parse(fs.readFileSync(`data/${fileName}.json`)).articles
+      : "none";
+    // const dataToExport = 'yoo';
+    console.log("DATATOEXPORT", dataToExport);
+    const workSheetColumnName = Object.keys(dataToExport[0]);
+
+    const workSheetName = "Articles";
+    const filePath = `./data/${fileName}.xlsx`;
+
+    exportUsersToExcel(dataToExport, workSheetColumnName, workSheetName, filePath);
+  }
+
+  async deleteSheet(fileName){
+    if (fs.existsSync(`data/${fileName}.xlsx`)) {
+      fs.unlink(`data/${fileName}.xlsx`, (err) => {
+        if (err) throw err;
+        console.log("file deleted");
+      });
     }
   }
 }

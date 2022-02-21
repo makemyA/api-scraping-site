@@ -4,11 +4,12 @@
   "main": "index.js",
   "author": "paul Henrot",
   "license": "MIT",
-  "type": "module", 
+  "type": "module",
   "scripts": {
     "log": "node index",
-    "db" : "node commands/updateDb.js",
-    "json" : "node commands/createJson.js",
+    "db": "node commands/updateDb.js",
+    "json": "node commands/createJson.js",
+    "excel": "node commands/createExcel.js",
     "reset": "node commands/reset.js"
   },
   "dependencies": {
@@ -16,6 +17,7 @@
     "graphql-request": "^4.0.0",
     "json2graphql": "^0.1.4",
     "node-fetch": "^3.2.0",
-    "puppeteer": "^13.3.2"
+    "puppeteer": "^13.3.2",
+    "xlsx": "^0.18.2"
   }
 }

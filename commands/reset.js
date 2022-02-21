@@ -1,5 +1,8 @@
 import List from "../list.js";
 
-const articles = new List({url:""});
+const articles = new List({ url: "" });
 
-articles.deleteData().then(() => articles.deleteJson('articles'));
+articles
+  .deleteData()
+  .then(() => articles.deleteJson("articles"))
+  .then(() => articles.deleteSheet("articles"));
